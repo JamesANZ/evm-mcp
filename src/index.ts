@@ -33,19 +33,53 @@ function formatResponse(data: any, title: string): string {
   let result = `**${title}**\n\n`;
 
   if (typeof data === "object" && data !== null) {
-    for (const [key, value] of Object.entries(data)) {
-      if (typeof value === "object" && value !== null) {
-        result += `**${key}:**\n`;
-        for (const [subKey, subValue] of Object.entries(value)) {
-          result += `  - ${subKey}: ${subValue}\n`;
+    if (Array.isArray(data)) {
+      // Handle arrays
+      result += `**Count:** ${data.length}\n\n`;
+      data.forEach((item, index) => {
+        result += `**${index + 1}.**\n`;
+        if (typeof item === "object" && item !== null) {
+          result += formatObject(item, "  ");
+        } else {
+          result += `  ${item}\n`;
         }
         result += "\n";
-      } else {
-        result += `**${key}:** ${value}\n`;
-      }
+      });
+    } else {
+      // Handle objects
+      result += formatObject(data, "");
     }
   } else {
     result += `${data}\n`;
+  }
+
+  return result;
+}
+
+// Helper function to format objects recursively
+function formatObject(obj: any, indent: string): string {
+  let result = "";
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "object" && value !== null) {
+      if (Array.isArray(value)) {
+        result += `${indent}**${key}:** [${value.length} items]\n`;
+        if (value.length > 0 && value.length <= 10) {
+          value.forEach((item, index) => {
+            if (typeof item === "object" && item !== null) {
+              result += `${indent}  ${index}: ${JSON.stringify(item, null, 2).replace(/\n/g, "\n" + indent + "    ")}\n`;
+            } else {
+              result += `${indent}  ${index}: ${item}\n`;
+            }
+          });
+        }
+      } else {
+        result += `${indent}**${key}:**\n`;
+        result += formatObject(value, indent + "  ");
+      }
+    } else {
+      result += `${indent}**${key}:** ${value}\n`;
+    }
   }
 
   return result;
@@ -711,18 +745,39 @@ server.tool(
 
       const result = await makeRPCCall("eth_getLogs", [filter]);
 
+      // Format logs specially for better readability
+      let logText = `**Event Logs**\n\n`;
+      logText += `**Total Logs:** ${result.length}\n`;
+      logText += `**Filter:** ${JSON.stringify(filter, null, 2)}\n\n`;
+
+      if (result.length > 0) {
+        logText += `**Logs:**\n\n`;
+        result.forEach((log: any, index: number) => {
+          logText += `**Log ${index + 1}:**\n`;
+          logText += `  **Address:** ${log.address}\n`;
+          logText += `  **Block:** ${log.blockNumber} (${parseInt(log.blockNumber, 16)})\n`;
+          logText += `  **Transaction:** ${log.transactionHash}\n`;
+          logText += `  **Log Index:** ${log.logIndex}\n`;
+          logText += `  **Topics:** [${log.topics.length} topics]\n`;
+          if (log.topics && log.topics.length > 0) {
+            log.topics.forEach((topic: string, topicIndex: number) => {
+              logText += `    ${topicIndex}: ${topic}\n`;
+            });
+          }
+          if (log.data && log.data !== "0x") {
+            logText += `  **Data:** ${log.data}\n`;
+          }
+          logText += `  **Removed:** ${log.removed}\n\n`;
+        });
+      } else {
+        logText += `No logs found matching the filter criteria.\n`;
+      }
+
       return {
         content: [
           {
             type: "text",
-            text: formatResponse(
-              {
-                logs_count: result.length,
-                logs: result,
-                filter,
-              },
-              "Event Logs",
-            ),
+            text: logText,
           },
         ],
       };
