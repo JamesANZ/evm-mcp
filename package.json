@@ -1,5 +1,5 @@
 {
-  "name": "evm-mcp",
+  "name": "@jamesanz/evm-mcp",
   "version": "1.0.0",
   "type": "module",
   "bin": {
