@@ -4,6 +4,20 @@ A comprehensive Model Context Protocol (MCP) server that provides complete acces
 
 ## 🚀 Quick Start
 
+### Install from npm:
+
+```bash
+npm install -g @jamesanz/evm-mcp
+```
+
+Or add to your project:
+
+```bash
+npm install @jamesanz/evm-mcp
+```
+
+### Manual Installation:
+
 1. **Install and build**:
 
    ```bash
@@ -129,10 +143,29 @@ This server works with any EVM-compatible network:
 
 ## Installation
 
+### Option 1: Install from npm (Recommended)
+
+```bash
+npm install -g @jamesanz/evm-mcp
+```
+
+After installation, run the configuration script:
+
+```bash
+# Set your RPC URL
+export RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
+export CHAIN_ID=1
+
+# Configure Claude Desktop automatically
+npm run -g configure-claude
+```
+
+### Option 2: Install from source
+
 1. Clone this repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/JamesANZ/evm-mcp.git
 cd evm-mcp
 ```
 
@@ -142,16 +175,23 @@ cd evm-mcp
 npm install
 ```
 
-3. Set up environment variables:
-
-Create a `.env` file in the project root:
+3. Build the project:
 
 ```bash
-# Required: Any EVM-compatible RPC endpoint
-RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
+npm run build
+```
 
-# Optional: Chain ID (defaults to 1 for Ethereum mainnet)
-CHAIN_ID=1
+4. Set up environment variables:
+
+```bash
+export RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
+export CHAIN_ID=1
+```
+
+5. Configure Claude Desktop:
+
+```bash
+npm run configure-claude
 ```
 
 ### RPC URL Examples
