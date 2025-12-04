@@ -143,6 +143,16 @@ This server works with any EVM-compatible network:
 
 ## Installation
 
+### Installing in Cursor
+
+You can install this MCP server directly in Cursor using the one-click install link:
+
+**🔗 [Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=evm-mcp&config=eyJldm0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiQGphbWVzYW56L2V2bS1tY3AiXX19)**
+
+This will automatically configure the MCP server using `npx`. After installation, you'll need to configure your RPC endpoint in Cursor settings.
+
+**Generate a new install link:** Run `npm run generate-cursor-link` to generate a fresh install link with the latest configuration.
+
 ### Option 1: Install from npm (Recommended)
 
 ```bash

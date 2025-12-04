@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "start": "node build/index.js",
     "postinstall": "node scripts/postinstall.js",
-    "configure-claude": "node scripts/configure-claude.js"
+    "configure-claude": "node scripts/configure-claude.js",
+    "generate-cursor-link": "node scripts/generate-cursor-install-link.js"
   },
   "files": [
     "build",
