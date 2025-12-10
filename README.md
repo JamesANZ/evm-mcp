@@ -1,210 +1,119 @@
-# EVM MCP Server
+# ⛽ EVM MCP Server
 
-A comprehensive Model Context Protocol (MCP) server that provides complete access to Ethereum Virtual Machine (EVM) JSON-RPC methods. Works with any EVM-compatible node provider including Infura, Alchemy, QuickNode, local nodes, and more.
+> **Complete EVM JSON-RPC access in your AI workflow.** Query any EVM-compatible network (Ethereum, Polygon, Arbitrum, Optimism, BSC, and more) through any node provider. Works with Infura, Alchemy, QuickNode, local nodes, and more.
 
-## 🚀 Quick Start
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that provides comprehensive access to Ethereum Virtual Machine (EVM) JSON-RPC methods for AI coding environments like Cursor and Claude Desktop.
 
-### Install from npm:
+## Why Use EVM MCP?
+
+- 🌐 **Any EVM Network** – Ethereum, Polygon, Arbitrum, Optimism, BSC, Avalanche, and more
+- 🔌 **Any Node Provider** – Infura, Alchemy, QuickNode, local nodes, or custom RPC
+- 📊 **20+ RPC Methods** – Complete access to blockchain data, transactions, and contracts
+- ⚡ **Easy Setup** – One-click install in Cursor or simple manual setup
+- 🔧 **Flexible Configuration** – Works with any JSON-RPC compatible endpoint
+
+## Quick Start
+
+Ready to interact with EVM blockchains? Install in seconds:
+
+**Install in Cursor (Recommended):**
+
+[🔗 Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=evm-mcp&config=eyJldm0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiQGphbWVzYW56L2V2bS1tY3AiXX19)
+
+**Or install manually:**
 
 ```bash
 npm install -g @jamesanz/evm-mcp
+# Or from source:
+git clone https://github.com/JamesANZ/evm-mcp.git
+cd evm-mcp && npm install && npm run build
 ```
-
-Or add to your project:
-
-```bash
-npm install @jamesanz/evm-mcp
-```
-
-### Manual Installation:
-
-1. **Install and build**:
-
-   ```bash
-   npm install
-   npm run build
-   ```
-
-2. **Configure Claude Desktop**:
-   - Open Claude Desktop Settings (`Cmd/Ctrl + ,`)
-   - Add MCP server with command: `node /path/to/evm-mcp/build/index.js`
-   - Set environment variables:
-     ```json
-     {
-       "RPC_URL": "https://mainnet.infura.io/v3/YOUR_API_KEY",
-       "CHAIN_ID": "1"
-     }
-     ```
-
-3. **Test it**: Ask Claude "What's the latest Ethereum block number?"
 
 ## Features
 
-This MCP server provides access to all major EVM JSON-RPC methods through 20+ specialized tools:
+### 🔢 Blockchain Data
+- **`eth_blockNumber`** – Get latest block number
+- **`eth_getBalance`** – Get account balance
+- **`eth_getTransactionCount`** – Get transaction count (nonce)
+- **`eth_getBlockByNumber`** – Get block information
+- **`eth_getTransactionByHash`** – Get transaction details
+- **`eth_getTransactionReceipt`** – Get transaction receipt
+- **`eth_getCode`** – Get contract bytecode
+- **`eth_getStorageAt`** – Get storage value
 
-### 🌐 Web3 Methods
+### 🔄 Transactions
+- **`eth_call`** – Execute contract call
+- **`eth_estimateGas`** – Estimate gas for transaction
+- **`eth_sendRawTransaction`** – Send signed transaction
+- **`eth_gasPrice`** – Get current gas price
 
-#### `web3_clientVersion`
+### 📊 Events & Logs
+- **`eth_getLogs`** – Get event logs
 
-Returns the current client version of the connected node.
+### 🌍 Network
+- **`eth_chainId`** – Get chain ID
+- **`net_version`** – Get network version
+- **`net_listening`** – Check if listening
+- **`net_peerCount`** – Get peer count
 
-#### `web3_sha3`
-
-Computes the Keccak-256 hash of the given data.
-
-### 🔢 Blockchain Data Methods
-
-#### `eth_blockNumber`
-
-Returns the number of the most recent block.
-
-#### `eth_getBalance`
-
-Returns the balance of an account at a specified block.
-
-#### `eth_getTransactionCount`
-
-Returns the number of transactions sent from an address (nonce).
-
-#### `eth_getBlockByNumber`
-
-Returns information about a block by block number.
-
-#### `eth_getTransactionByHash`
-
-Returns transaction information by transaction hash.
-
-#### `eth_getTransactionReceipt`
-
-Returns the receipt of a transaction by transaction hash.
-
-#### `eth_getCode`
-
-Returns the bytecode at a given contract address.
-
-#### `eth_getStorageAt`
-
-Returns the value from a storage position at a given address.
-
-### 🔄 Transaction Methods
-
-#### `eth_call`
-
-Executes a message call immediately without creating a transaction.
-
-#### `eth_estimateGas`
-
-Estimates the gas required for a transaction.
-
-#### `eth_sendRawTransaction`
-
-Submits a pre-signed transaction for broadcast to the network.
-
-#### `eth_gasPrice`
-
-Returns the current price per gas in wei.
-
-### 📊 Event and Log Methods
-
-#### `eth_getLogs`
-
-Returns an array of all logs matching a given filter object.
-
-### 🌍 Network Methods
-
-#### `eth_chainId`
-
-Returns the chain ID of the current network.
-
-#### `net_version`
-
-Returns the current network ID.
-
-#### `net_listening`
-
-Returns true if client is actively listening for network connections.
-
-#### `net_peerCount`
-
-Returns the number of peers currently connected to the client.
-
-## Supported Networks
-
-This server works with any EVM-compatible network:
-
-- **Ethereum**: Mainnet, Sepolia, Goerli
-- **Polygon**: Mainnet, Mumbai
-- **Arbitrum**: One, Sepolia
-- **Optimism**: Mainnet, Sepolia
-- **BNB Smart Chain**: Mainnet, Testnet
-- **Avalanche**: C-Chain
-- **Fantom**: Opera
-- **And many more EVM-compatible chains**
+### 🌐 Web3
+- **`web3_clientVersion`** – Get client version
+- **`web3_sha3`** – Hash data with Keccak-256
 
 ## Installation
 
-### Installing in Cursor
+### Cursor (One-Click)
 
-You can install this MCP server directly in Cursor using the one-click install link:
-
-**🔗 [Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=evm-mcp&config=eyJldm0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiQGphbWVzYW56L2V2bS1tY3AiXX19)**
+Click the install link above or use:
 
 ```
 cursor://anysphere.cursor-deeplink/mcp/install?name=evm-mcp&config=eyJldm0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiQGphbWVzYW56L2V2bS1tY3AiXX19
 ```
 
-This will automatically configure the MCP server using `npx`. After installation, you'll need to configure your RPC endpoint in Cursor settings.
+### Manual Installation
 
-### Option 1: Install from npm (Recommended)
-
-```bash
-npm install -g @jamesanz/evm-mcp
-```
-
-After installation, run the configuration script:
+**Requirements:** Node.js 18+ and npm
 
 ```bash
-# Set your RPC URL
-export RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
-export CHAIN_ID=1
-
-# Configure Claude Desktop automatically
-npm run -g configure-claude
-```
-
-### Option 2: Install from source
-
-1. Clone this repository:
-
-```bash
+# Clone and build
 git clone https://github.com/JamesANZ/evm-mcp.git
 cd evm-mcp
-```
-
-2. Install dependencies:
-
-```bash
 npm install
-```
-
-3. Build the project:
-
-```bash
 npm run build
+
+# Set RPC URL
+export RPC_URL="https://mainnet.infura.io/v3/YOUR_API_KEY"
+export CHAIN_ID="1"
+
+# Run server
+npm start
 ```
 
-4. Set up environment variables:
+### Claude Desktop
 
-```bash
-export RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
-export CHAIN_ID=1
+Add to `claude_desktop_config.json`:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "evm-mcp": {
+      "command": "node",
+      "args": ["/absolute/path/to/evm-mcp/build/index.js"],
+      "env": {
+        "RPC_URL": "https://mainnet.infura.io/v3/YOUR_API_KEY",
+        "CHAIN_ID": "1"
+      }
+    }
+  }
+}
 ```
 
-5. Configure Claude Desktop:
+Restart Claude Desktop after configuration.
 
-```bash
-npm run configure-claude
-```
+## Configuration
 
 ### RPC URL Examples
 
@@ -227,135 +136,21 @@ RPC_URL=https://arb1.arbitrum.io/rpc
 RPC_URL=http://localhost:8545
 ```
 
-4. Build the project:
+### Supported Networks
 
-```bash
-npm run build
-```
+- **Ethereum**: Mainnet, Sepolia, Goerli
+- **Polygon**: Mainnet, Mumbai
+- **Arbitrum**: One, Sepolia
+- **Optimism**: Mainnet, Sepolia
+- **BNB Smart Chain**: Mainnet, Testnet
+- **Avalanche**: C-Chain
+- **Fantom**: Opera
+- **Any EVM-compatible chain**
 
-## Usage
+## Usage Examples
 
-### Adding to Claude Desktop
-
-To use this EVM MCP server with Claude Desktop, you need to configure it in your Claude Desktop settings.
-
-#### 1. Build the Server
-
-First, build the server:
-
-```bash
-npm run build
-```
-
-#### 2. Configure Claude Desktop
-
-1. **Open Claude Desktop Settings**:
-   - On macOS: `Cmd + ,` or go to Claude Desktop → Settings
-   - On Windows: `Ctrl + ,` or go to File → Settings
-
-2. **Add the MCP Server**:
-   - Click "Add server" or the "+" button
-   - Fill in the configuration:
-
-   **Server Name**: `EVM MCP Server`
-
-   **Command**:
-
-   ```bash
-   node /path/to/your/evm-mcp/build/index.js
-   ```
-
-   **Environment Variables**:
-
-   ```json
-   {
-     "RPC_URL": "https://mainnet.infura.io/v3/YOUR_API_KEY",
-     "CHAIN_ID": "1"
-   }
-   ```
-
-3. **Example Configuration**:
-
-   For **Infura**:
-
-   ```json
-   {
-     "RPC_URL": "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-     "CHAIN_ID": "1"
-   }
-   ```
-
-   For **Alchemy**:
-
-   ```json
-   {
-     "RPC_URL": "https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY",
-     "CHAIN_ID": "1"
-   }
-   ```
-
-   For **Polygon**:
-
-   ```json
-   {
-     "RPC_URL": "https://polygon-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-     "CHAIN_ID": "137"
-   }
-   ```
-
-   For **Arbitrum**:
-
-   ```json
-   {
-     "RPC_URL": "https://arbitrum-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-     "CHAIN_ID": "42161"
-   }
-   ```
-
-4. **Save and Restart**: Save the configuration and restart Claude Desktop.
-
-#### 3. Verify Connection
-
-Once configured, you should see the EVM MCP Server available in Claude. You can test it by asking Claude to:
-
-- "Get the latest Ethereum block number"
-- "Check the balance of address 0x742d35Cc6634C0532925a3b8D6Ac6e2F0C4C9B7C"
-- "Get the current gas price"
-
-### Running the Server Standalone
-
-You can also run the server directly:
-
-```bash
-# Set environment variables
-export RPC_URL="https://mainnet.infura.io/v3/YOUR_API_KEY"
-export CHAIN_ID="1"
-
-# Start the server
-npm start
-```
-
-The server runs on stdio and can be connected to any MCP-compatible client.
-
-### Testing
-
-Run the test suite:
-
-```bash
-npm test
-```
-
-Run tests in watch mode:
-
-```bash
-npm run test:watch
-```
-
-### Example Queries
-
-Here are some example queries you can make with this MCP server:
-
-#### Get Latest Block Number
+### Get Latest Block Number
+Query the current block number:
 
 ```json
 {
@@ -364,7 +159,8 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
-#### Get Account Balance
+### Get Account Balance
+Check an address balance:
 
 ```json
 {
@@ -376,7 +172,8 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
-#### Get Transaction Information
+### Get Transaction Details
+View transaction information:
 
 ```json
 {
@@ -387,7 +184,8 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
-#### Call a Smart Contract
+### Call Smart Contract
+Execute a contract call:
 
 ```json
 {
@@ -399,20 +197,8 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
-#### Estimate Gas for a Transaction
-
-```json
-{
-  "tool": "eth_estimateGas",
-  "arguments": {
-    "to": "0x742d35Cc6634C0532925a3b8D6Ac6e2F0C4C9B7C",
-    "from": "0x1234567890123456789012345678901234567890",
-    "value": "0xde0b6b3a7640000"
-  }
-}
-```
-
-#### Get Event Logs
+### Get Event Logs
+Query contract events:
 
 ```json
 {
@@ -421,321 +207,49 @@ Here are some example queries you can make with this MCP server:
     "fromBlock": "0x1234567",
     "toBlock": "latest",
     "address": "0xA0b86a33E6441c8C06DDD46C310c0eF8D9441C8F",
-    "topics": [
-      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-    ]
+    "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]
   }
 }
 ```
 
-#### Get Current Gas Price
+## Use Cases
 
-```json
-{
-  "tool": "eth_gasPrice",
-  "arguments": {}
-}
-```
+- **Blockchain Analytics** – Query transaction data, balances, and contract states
+- **DeFi Applications** – Monitor token balances, transaction receipts, and smart contract calls
+- **NFT Projects** – Track transfers, metadata, and collection statistics
+- **Development Tools** – Debug transactions, estimate gas, and test smart contracts
+- **Monitoring** – Watch for specific events and transaction patterns
+- **Research** – Analyze blockchain data across multiple EVM networks
 
-#### Get Network Information
+## Technical Details
 
-```json
-{
-  "tool": "eth_chainId",
-  "arguments": {}
-}
-```
+**Built with:** Node.js, TypeScript, MCP SDK, Ethers.js  
+**Dependencies:** `@modelcontextprotocol/sdk`, `ethers`, `zod`  
+**Platforms:** macOS, Windows, Linux
 
-## API Reference
-
-### Core EVM Methods
-
-| Method                      | Description                   | Parameters                                                      |
-| --------------------------- | ----------------------------- | --------------------------------------------------------------- |
-| `eth_blockNumber`           | Get latest block number       | None                                                            |
-| `eth_getBalance`            | Get account balance           | `address`, `blockNumber`                                        |
-| `eth_getTransactionCount`   | Get transaction count (nonce) | `address`, `blockNumber`                                        |
-| `eth_getBlockByNumber`      | Get block information         | `blockNumber`, `includeTransactions`                            |
-| `eth_getTransactionByHash`  | Get transaction details       | `txHash`                                                        |
-| `eth_getTransactionReceipt` | Get transaction receipt       | `txHash`                                                        |
-| `eth_call`                  | Execute contract call         | `to`, `data`, `blockNumber`, `from`, `value`, `gas`, `gasPrice` |
-| `eth_estimateGas`           | Estimate gas for transaction  | `to`, `data`, `from`, `value`, `gas`, `gasPrice`                |
-| `eth_sendRawTransaction`    | Send signed transaction       | `signedTransactionData`                                         |
-| `eth_gasPrice`              | Get current gas price         | None                                                            |
-| `eth_getCode`               | Get contract bytecode         | `address`, `blockNumber`                                        |
-| `eth_getStorageAt`          | Get storage value             | `address`, `position`, `blockNumber`                            |
-| `eth_getLogs`               | Get event logs                | `fromBlock`, `toBlock`, `address`, `topics`                     |
-
-### Network Methods
-
-| Method          | Description         | Parameters |
-| --------------- | ------------------- | ---------- |
-| `eth_chainId`   | Get chain ID        | None       |
-| `net_version`   | Get network version | None       |
-| `net_listening` | Check if listening  | None       |
-| `net_peerCount` | Get peer count      | None       |
-
-### Web3 Methods
-
-| Method               | Description               | Parameters |
-| -------------------- | ------------------------- | ---------- |
-| `web3_clientVersion` | Get client version        | None       |
-| `web3_sha3`          | Hash data with Keccak-256 | `data`     |
-
-## Data Format
-
-- All hex values are returned in their original format
-- Decimal conversions are provided for human readability
-- Block numbers can be specified as hex strings or keywords: `latest`, `earliest`, `pending`
-- Gas prices are displayed in both wei and gwei
-- Timestamps are converted to ISO format when applicable
-
-## Error Handling
-
-The server includes comprehensive error handling:
-
-- Network errors are caught and reported with descriptive messages
-- Invalid addresses or transaction hashes return appropriate error messages
-- Rate limiting and API errors are handled gracefully
-- Missing environment variables cause startup failures with clear messages
-
-## Configuration
-
-### Environment Variables
-
+**Environment Variables:**
 - `RPC_URL` (required): Any EVM-compatible RPC endpoint
 - `CHAIN_ID` (optional): Chain ID for the network (defaults to 1)
 
-### Claude Desktop Configuration
+## Contributing
 
-When adding this MCP server to Claude Desktop, you'll need to configure it in the MCP settings. Here's a complete guide:
+⭐ **If this project helps you, please star it on GitHub!** ⭐
 
-#### Step-by-Step Setup
-
-1. **Build the Server**:
-
-   ```bash
-   npm run build
-   ```
-
-2. **Open Claude Desktop Settings**:
-   - **macOS**: Press `Cmd + ,` or go to Claude Desktop → Settings
-   - **Windows**: Press `Ctrl + ,` or go to File → Settings
-
-3. **Navigate to MCP Settings**:
-   - Look for "MCP" or "Model Context Protocol" in the settings menu
-   - Click "Add server" or the "+" button
-
-4. **Configure the Server**:
-
-   **Server Name**: `EVM MCP Server`
-
-   **Command**:
-
-   ```
-   node /full/path/to/your/evm-mcp/build/index.js
-   ```
-
-   **Environment Variables** (JSON format):
-
-   ```json
-   {
-     "RPC_URL": "https://mainnet.infura.io/v3/YOUR_API_KEY",
-     "CHAIN_ID": "1"
-   }
-   ```
-
-#### Network-Specific Configurations
-
-**Ethereum Mainnet (Infura)**:
-
-```json
-{
-  "RPC_URL": "https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-  "CHAIN_ID": "1"
-}
-```
-
-**Ethereum Mainnet (Alchemy)**:
-
-```json
-{
-  "RPC_URL": "https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY",
-  "CHAIN_ID": "1"
-}
-```
-
-**Polygon Mainnet**:
-
-```json
-{
-  "RPC_URL": "https://polygon-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-  "CHAIN_ID": "137"
-}
-```
-
-**Arbitrum One**:
-
-```json
-{
-  "RPC_URL": "https://arbitrum-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-  "CHAIN_ID": "42161"
-}
-```
-
-**Optimism Mainnet**:
-
-```json
-{
-  "RPC_URL": "https://optimism-mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID",
-  "CHAIN_ID": "10"
-}
-```
-
-**BNB Smart Chain**:
-
-```json
-{
-  "RPC_URL": "https://bsc-dataseed.binance.org",
-  "CHAIN_ID": "56"
-}
-```
-
-#### Testing Your Configuration
-
-After saving and restarting Claude Desktop, test the connection by asking Claude:
-
-- "What's the latest Ethereum block number?"
-- "Check the balance of address 0x742d35Cc6634C0532925a3b8D6Ac6e2F0C4C9B7C"
-- "What's the current gas price?"
-- "Get the chain ID of the current network"
-
-If the server is working correctly, Claude should be able to execute these EVM RPC calls and return real blockchain data.
-
-#### Troubleshooting Claude Desktop Setup
-
-**Common Issues and Solutions**:
-
-1. **"Server not found" error**:
-   - Make sure you've built the server: `npm run build`
-   - Verify the full path to `build/index.js` is correct
-   - Check that Node.js is installed and accessible
-
-2. **"Environment variable not set" error**:
-   - Ensure the JSON format is correct (no trailing commas)
-   - Make sure `RPC_URL` is set in the environment variables section
-   - Verify your API key is valid and has sufficient quota
-
-3. **"Connection failed" error**:
-   - Test your RPC URL directly: `curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' YOUR_RPC_URL`
-   - Check if your provider requires authentication
-   - Verify the network is accessible from your location
-
-4. **Server appears but tools don't work**:
-   - Restart Claude Desktop after configuration changes
-   - Check the server logs in Claude Desktop settings
-   - Verify the server is running without errors
-
-### Supported Node Providers
-
-- **Infura**: `https://mainnet.infura.io/v3/YOUR_API_KEY`
-- **Alchemy**: `https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY`
-- **QuickNode**: `https://YOUR_ENDPOINT.quiknode.pro/YOUR_TOKEN/`
-- **Public RPCs**: Various public endpoints (rate limited)
-- **Local Nodes**: `http://localhost:8545`
-- **Custom Providers**: Any JSON-RPC compatible endpoint
-
-## Dependencies
-
-- `@modelcontextprotocol/sdk` - MCP SDK for server implementation
-- `ethers` - Ethereum library for blockchain interaction
-- `zod` - Schema validation for tool parameters
-
-## Development
-
-### Project Structure
-
-```
-evm-mcp/
-├── src/
-│   └── index.ts          # Main server implementation
-├── test/
-│   └── index.test.js     # Test suite
-├── build/                # Compiled JavaScript output
-├── package.json          # Dependencies and scripts
-├── tsconfig.json         # TypeScript configuration
-├── jest.config.cjs       # Jest test configuration
-└── README.md            # This file
-```
-
-### Testing
-
-The project uses Jest for unit testing. Tests are located in the `test/` directory and can be run with:
-
-```bash
-npm test
-```
-
-### Building
-
-The project uses TypeScript and compiles to JavaScript in the `build/` directory:
-
-```bash
-npm run build
-```
-
-## Use Cases
-
-This MCP server is perfect for:
-
-- **Blockchain Analytics**: Query transaction data, balances, and contract states
-- **DeFi Applications**: Monitor token balances, transaction receipts, and smart contract calls
-- **NFT Projects**: Track transfers, metadata, and collection statistics
-- **Development Tools**: Debug transactions, estimate gas, and test smart contracts
-- **Monitoring**: Watch for specific events and transaction patterns
-- **Research**: Analyze blockchain data across multiple EVM networks
-
-## Donate
-
-If you find this project useful, consider supporting it with Bitcoin:
-
-**⚡ Lightning Network**
-
-<img src="https://raw.githubusercontent.com/bitcoinwarrior1/CitySats/main/public/lightning.jpeg" alt="Lightning QR Code" width="120" />
-
-<code>lnbc1pjhhsqepp5mjgwnvg0z53shm22hfe9us289lnaqkwv8rn2s0rtekg5vvj56xnqdqqcqzzsxqyz5vqsp5gu6vh9hyp94c7t3tkpqrp2r059t4vrw7ps78a4n0a2u52678c7yq9qyyssq7zcferywka50wcy75skjfrdrk930cuyx24rg55cwfuzxs49rc9c53mpz6zug5y2544pt8y9jflnq0ltlha26ed846jh0y7n4gm8jd3qqaautqa</code>
-
-**₿ On-Chain**
-
-<img src="https://raw.githubusercontent.com/bitcoinwarrior1/CitySats/main/public/onchain.jpg" alt="Bitcoin Address QR Code" width="120" />
-
-<code>[bc1ptzvr93pn959xq4et6sqzpfnkk2args22ewv5u2th4ps7hshfaqrshe0xtp](https://mempool.space/address/bc1ptzvr93pn959xq4et6sqzpfnkk2args22ewv5u2th4ps7hshfaqrshe0xtp)</code>
-
-**Ξ Ethereum / EVM Networks**
-
-<img src="https://raw.githubusercontent.com/bitcoinwarrior1/CitySats/main/public/ethereum.jpg" alt="Ethereum Address QR Code" width="120" />
-
-<code>[0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f](https://etherscan.io/address/0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f)</code>
-
-*Donations from any EVM-compatible network (Ethereum, Polygon, Arbitrum, Optimism, BSC, Avalanche, etc.) will work perfectly! You can also send tokens like USDT, USDC, DAI, and other ERC-20 tokens to this address.*
+Contributions welcome! Please open an issue or submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+MIT License – see [LICENSE.md](LICENSE.md) for details.
 
 ## Support
 
-For issues and questions:
+If you find this project useful, consider supporting it:
 
-1. Check the [Issues](https://github.com/your-repo/evm-mcp/issues) page
-2. Create a new issue with detailed information
-3. Include your RPC URL configuration and error messages
+**⚡ Lightning Network**
+```
+lnbc1pjhhsqepp5mjgwnvg0z53shm22hfe9us289lnaqkwv8rn2s0rtekg5vvj56xnqdqqcqzzsxqyz5vqsp5gu6vh9hyp94c7t3tkpqrp2r059t4vrw7ps78a4n0a2u52678c7yq9qyyssq7zcferywka50wcy75skjfrdrk930cuyx24rg55cwfuzxs49rc9c53mpz6zug5y2544pt8y9jflnq0ltlha26ed846jh0y7n4gm8jd3qqaautqa
+```
+
+**₿ Bitcoin**: [bc1ptzvr93pn959xq4et6sqzpfnkk2args22ewv5u2th4ps7hshfaqrshe0xtp](https://mempool.space/address/bc1ptzvr93pn959xq4et6sqzpfnkk2args22ewv5u2th4ps7hshfaqrshe0xtp)
+
+**Ξ Ethereum/EVM**: [0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f](https://etherscan.io/address/0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f)
