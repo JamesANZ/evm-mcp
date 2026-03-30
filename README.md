@@ -29,6 +29,10 @@ git clone https://github.com/JamesANZ/evm-mcp.git
 cd evm-mcp && npm install && npm run build
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/jamesanz-evm-mcp).
+
 ## Features
 
 ### 🔢 Blockchain Data
