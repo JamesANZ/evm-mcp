@@ -19,12 +19,10 @@ const MCP_SERVER_CONFIG = {
   mcpServers: {
     "evm-mcp": {
       command: "node",
-      args: [
-        join(packageDir, "build", "index.js")
-      ],
+      args: [join(packageDir, "build", "index.js")],
       env: {
-        // RPC_URL and CHAIN_ID will need to be set by user
-        // Run 'npm run configure-claude' to set these automatically
+        // Set INFURA_API_KEY, DEFAULT_NETWORK, DEFAULT_PROVIDER, etc.
+        // Run 'npm run configure-claude' to configure automatically
       },
     },
   },
@@ -68,12 +66,14 @@ function createClaudeConfig() {
 
     console.log("✅ Successfully configured Claude Desktop!");
     console.log(`📄 Config file: ${CONFIG_PATH}`);
-    console.log(
-      "🔄 Please restart Claude Desktop to use the evm-mcp server",
-    );
+    console.log("🔄 Please restart Claude Desktop to use the evm-mcp server");
     console.log("");
-    console.log("⚠️  Note: You'll need to set RPC_URL and CHAIN_ID environment variables.");
-    console.log("   Run 'npm run configure-claude' to configure these automatically,");
+    console.log(
+      "⚠️  Note: Set INFURA_API_KEY (or CUSTOM_PROVIDERS / CUSTOM_NETWORKS) in env.",
+    );
+    console.log(
+      "   Run 'npm run configure-claude' to configure these automatically,",
+    );
     console.log("   or set them manually in Claude Desktop settings.");
   } catch (error) {
     console.error("❌ Error configuring Claude Desktop:", error.message);
@@ -86,8 +86,9 @@ function createClaudeConfig() {
     console.log("   Command: node");
     console.log(`   Args: [\"${join(packageDir, "build", "index.js")}\"]`);
     console.log("   Environment Variables:");
-    console.log("     RPC_URL: https://mainnet.infura.io/v3/YOUR_API_KEY");
-    console.log("     CHAIN_ID: 1");
+    console.log("     INFURA_API_KEY: your-infura-api-key");
+    console.log("     DEFAULT_NETWORK: ethereum");
+    console.log("     DEFAULT_PROVIDER: infura");
     console.log("4. Restart Claude Desktop");
     process.exit(1);
   }

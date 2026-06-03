@@ -1,12 +1,22 @@
 module.exports = {
-  preset: "ts-jest",
+  preset: "ts-jest/presets/default-esm",
   testEnvironment: "node",
-  testMatch: ["**/test/**/*.test.js"],
-  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts"],
-  coverageDirectory: "coverage",
-  coverageReporters: ["text", "lcov", "html"],
+  testMatch: ["**/test/**/*.test.{js,ts}"],
+  extensionsToTreatAsEsm: [".ts"],
+  moduleNameMapper: {
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+  },
   transform: {
-    "^.+\\.ts$": "ts-jest",
+    "^.+\\.tsx?$": [
+      "ts-jest",
+      {
+        useESM: true,
+        tsconfig: {
+          module: "Node16",
+          moduleResolution: "Node16",
+        },
+      },
+    ],
   },
   transformIgnorePatterns: [
     "node_modules/(?!(@modelcontextprotocol|ethers|zod)/)",

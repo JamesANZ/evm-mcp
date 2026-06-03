@@ -32,6 +32,7 @@ cd evm-mcp && npm install && npm run build
 ## Features
 
 ### 🔢 Blockchain Data
+
 - **`eth_blockNumber`** – Get latest block number
 - **`eth_getBalance`** – Get account balance
 - **`eth_getTransactionCount`** – Get transaction count (nonce)
@@ -42,21 +43,26 @@ cd evm-mcp && npm install && npm run build
 - **`eth_getStorageAt`** – Get storage value
 
 ### 🔄 Transactions
+
 - **`eth_call`** – Execute contract call
 - **`eth_estimateGas`** – Estimate gas for transaction
 - **`eth_sendRawTransaction`** – Send signed transaction
 - **`eth_gasPrice`** – Get current gas price
 
 ### 📊 Events & Logs
+
 - **`eth_getLogs`** – Get event logs
 
 ### 🌍 Network
+
+- **`list_supported_networks`** – List configured networks and providers
 - **`eth_chainId`** – Get chain ID
 - **`net_version`** – Get network version
 - **`net_listening`** – Check if listening
 - **`net_peerCount`** – Get peer count
 
 ### 🌐 Web3
+
 - **`web3_clientVersion`** – Get client version
 - **`web3_sha3`** – Hash data with Keccak-256
 
@@ -81,9 +87,10 @@ cd evm-mcp
 npm install
 npm run build
 
-# Set RPC URL
-export RPC_URL="https://mainnet.infura.io/v3/YOUR_API_KEY"
-export CHAIN_ID="1"
+# Set provider API keys
+export INFURA_API_KEY="your-infura-api-key"
+export DEFAULT_NETWORK="ethereum"
+export DEFAULT_PROVIDER="infura"
 
 # Run server
 npm start
@@ -103,8 +110,10 @@ Add to `claude_desktop_config.json`:
       "command": "node",
       "args": ["/absolute/path/to/evm-mcp/build/index.js"],
       "env": {
-        "RPC_URL": "https://mainnet.infura.io/v3/YOUR_API_KEY",
-        "CHAIN_ID": "1"
+        "INFURA_API_KEY": "your-infura-api-key",
+        "DEFAULT_NETWORK": "ethereum",
+        "DEFAULT_PROVIDER": "infura",
+        "RPC_PROVIDER_ORDER": "infura,alchemy"
       }
     }
   }
@@ -115,41 +124,92 @@ Restart Claude Desktop after configuration.
 
 ## Configuration
 
-### RPC URL Examples
+### Environment Variables
 
-```bash
-# Infura
-RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY
+| Variable             | Required | Description                                                         |
+| -------------------- | -------- | ------------------------------------------------------------------- |
+| `INFURA_API_KEY`     | One of\* | Infura project API key (built-in preset)                            |
+| `ALCHEMY_API_KEY`    | One of\* | Alchemy app API key (built-in preset)                               |
+| `DEFAULT_NETWORK`    | No       | Default chain slug or chain ID (default: `ethereum`)                |
+| `DEFAULT_PROVIDER`   | No       | Provider slug to prefer (`infura`, `alchemy`, or custom)            |
+| `RPC_PROVIDER_ORDER` | No       | Comma-separated provider fallback order (default: `infura,alchemy`) |
+| `CUSTOM_PROVIDERS`   | One of\* | JSON array of user-defined providers                                |
+| `CUSTOM_NETWORKS`    | One of\* | JSON array of user-defined networks                                 |
 
-# Alchemy
-RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+\*At least one provider API key, custom provider, or custom network with `rpcUrl` is required.
 
-# QuickNode
-RPC_URL=https://YOUR_ENDPOINT.quiknode.pro/YOUR_TOKEN/
+### Built-in Providers (Infura / Alchemy)
 
-# Public endpoints (rate limited)
-RPC_URL=https://bsc-dataseed.binance.org
-RPC_URL=https://polygon-rpc.com
-RPC_URL=https://arb1.arbitrum.io/rpc
+Set an API key and the server builds RPC URLs automatically for supported networks:
 
-# Local node
-RPC_URL=http://localhost:8545
+```json
+{
+  "INFURA_API_KEY": "your-infura-key",
+  "DEFAULT_NETWORK": "ethereum",
+  "DEFAULT_PROVIDER": "infura",
+  "RPC_PROVIDER_ORDER": "infura,alchemy"
+}
 ```
 
-### Supported Networks
+Each RPC tool accepts an optional `network` parameter (slug, name, or chain ID). When omitted, `DEFAULT_NETWORK` is used.
 
-- **Ethereum**: Mainnet, Sepolia, Goerli
-- **Polygon**: Mainnet, Mumbai
+```json
+{
+  "tool": "eth_chainId",
+  "arguments": { "network": "polygon" }
+}
+```
+
+Use `list_supported_networks` to discover configured networks and providers.
+
+### Custom Providers (`CUSTOM_PROVIDERS`)
+
+Register any RPC provider by supplying a base URL template and network-specific URLs:
+
+```json
+"CUSTOM_PROVIDERS": "[{\"slug\":\"quicknode\",\"apiKeyEnv\":\"QUICKNODE_API_KEY\",\"baseUrl\":\"https://rpc.example.com/v1/{apiKey}\",\"networkUrls\":{\"ethereum\":\"https://eth.quiknode.pro/{apiKey}/\",\"polygon\":\"https://polygon.quiknode.pro/{apiKey}/\"}}]"
+```
+
+- **Absolute** `networkUrls` values are used directly (with `{apiKey}` substitution).
+- **Relative** paths (starting with `/`) are appended to `baseUrl`.
+
+### Custom Networks (`CUSTOM_NETWORKS`)
+
+Register arbitrary chains by name:
+
+```json
+"CUSTOM_NETWORKS": "[{\"name\":\"HyperEVM\",\"slug\":\"hyperevm\",\"chainId\":999,\"rpcUrl\":\"https://rpc.hyperliquid.xyz/evm\"}]"
+```
+
+Or route through a provider by setting `provider` and adding the network slug to that provider's `networkUrls`.
+
+### Migration from RPC_URL
+
+```diff
+- "RPC_URL": "https://mainnet.infura.io/v3/KEY"
+- "CHAIN_ID": "1"
++ "INFURA_API_KEY": "KEY"
++ "DEFAULT_NETWORK": "ethereum"
++ "DEFAULT_PROVIDER": "infura"
+```
+
+Configuration changes require restarting the MCP server.
+
+### Supported Built-in Networks
+
+- **Ethereum**: Mainnet, Sepolia
+- **Polygon**: Mainnet, Amoy
 - **Arbitrum**: One, Sepolia
 - **Optimism**: Mainnet, Sepolia
 - **BNB Smart Chain**: Mainnet, Testnet
 - **Avalanche**: C-Chain
-- **Fantom**: Opera
-- **Any EVM-compatible chain**
+- **Base**: Mainnet, Sepolia
+- **Any EVM-compatible chain** via `CUSTOM_NETWORKS`
 
 ## Usage Examples
 
 ### Get Latest Block Number
+
 Query the current block number:
 
 ```json
@@ -160,6 +220,7 @@ Query the current block number:
 ```
 
 ### Get Account Balance
+
 Check an address balance:
 
 ```json
@@ -173,6 +234,7 @@ Check an address balance:
 ```
 
 ### Get Transaction Details
+
 View transaction information:
 
 ```json
@@ -185,6 +247,7 @@ View transaction information:
 ```
 
 ### Call Smart Contract
+
 Execute a contract call:
 
 ```json
@@ -198,6 +261,7 @@ Execute a contract call:
 ```
 
 ### Get Event Logs
+
 Query contract events:
 
 ```json
@@ -207,7 +271,9 @@ Query contract events:
     "fromBlock": "0x1234567",
     "toBlock": "latest",
     "address": "0xA0b86a33E6441c8C06DDD46C310c0eF8D9441C8F",
-    "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]
+    "topics": [
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    ]
   }
 }
 ```
@@ -227,9 +293,7 @@ Query contract events:
 **Dependencies:** `@modelcontextprotocol/sdk`, `ethers`, `zod`  
 **Platforms:** macOS, Windows, Linux
 
-**Environment Variables:**
-- `RPC_URL` (required): Any EVM-compatible RPC endpoint
-- `CHAIN_ID` (optional): Chain ID for the network (defaults to 1)
+**Environment Variables:** See [Configuration](#configuration) above.
 
 ## Contributing
 
@@ -246,6 +310,7 @@ MIT License – see [LICENSE.md](LICENSE.md) for details.
 If you find this project useful, consider supporting it:
 
 **⚡ Lightning Network**
+
 ```
 lnbc1pjhhsqepp5mjgwnvg0z53shm22hfe9us289lnaqkwv8rn2s0rtekg5vvj56xnqdqqcqzzsxqyz5vqsp5gu6vh9hyp94c7t3tkpqrp2r059t4vrw7ps78a4n0a2u52678c7yq9qyyssq7zcferywka50wcy75skjfrdrk930cuyx24rg55cwfuzxs49rc9c53mpz6zug5y2544pt8y9jflnq0ltlha26ed846jh0y7n4gm8jd3qqaautqa
 ```

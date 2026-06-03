@@ -2,52 +2,40 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { ethers } from "ethers";
+import { loadConfig } from "./config.js";
+import { makeRPCCall } from "./rpc/client.js";
+import { resolveNetwork } from "./network/resolve.js";
+import { networkSchema } from "./schemas.js";
+import { buildSupportedNetworksReport } from "./list-networks.js";
 
-// Configuration
-const RPC_URL = process.env.RPC_URL || process.env.ETHEREUM_RPC_URL;
-const CHAIN_ID = process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID) : 1; // Default to Ethereum mainnet
-
-if (!RPC_URL) {
-  console.error("Error: RPC_URL environment variable is required");
-  console.error("Example: RPC_URL=https://mainnet.infura.io/v3/YOUR_API_KEY");
-  console.error(
-    "Or: RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY",
-  );
-  process.exit(1);
-}
-
-// Create provider
-const provider = new ethers.JsonRpcProvider(RPC_URL);
+const config = loadConfig();
 
 const server = new McpServer({
   name: "evm-mcp",
-  version: "1.0.0",
+  version: "2.0.0",
   capabilities: {
     resources: {},
     tools: {},
   },
 });
 
-// Helper function to format responses
-function formatResponse(data: any, title: string): string {
+function formatResponse(data: unknown, title: string): string {
   let result = `**${title}**\n\n`;
 
   if (typeof data === "object" && data !== null) {
     if (Array.isArray(data)) {
-      // Handle arrays
       result += `**Count:** ${data.length}\n\n`;
       data.forEach((item, index) => {
         result += `**${index + 1}.**\n`;
         if (typeof item === "object" && item !== null) {
-          result += formatObject(item, "  ");
+          result += formatObject(item as Record<string, unknown>, "  ");
         } else {
           result += `  ${item}\n`;
         }
         result += "\n";
       });
     } else {
-      // Handle objects
-      result += formatObject(data, "");
+      result += formatObject(data as Record<string, unknown>, "");
     }
   } else {
     result += `${data}\n`;
@@ -56,8 +44,7 @@ function formatResponse(data: any, title: string): string {
   return result;
 }
 
-// Helper function to format objects recursively
-function formatObject(obj: any, indent: string): string {
+function formatObject(obj: Record<string, unknown>, indent: string): string {
   let result = "";
 
   for (const [key, value] of Object.entries(obj)) {
@@ -75,7 +62,7 @@ function formatObject(obj: any, indent: string): string {
         }
       } else {
         result += `${indent}**${key}:**\n`;
-        result += formatObject(value, indent + "  ");
+        result += formatObject(value as Record<string, unknown>, indent + "  ");
       }
     } else {
       result += `${indent}**${key}:** ${value}\n`;
@@ -85,25 +72,48 @@ function formatObject(obj: any, indent: string): string {
   return result;
 }
 
-// Generic RPC call function
-async function makeRPCCall(method: string, params: any[] = []): Promise<any> {
-  try {
-    const result = await provider.send(method, params);
-    return result;
-  } catch (error: any) {
-    throw new Error(`RPC call failed: ${error.message}`);
-  }
+function toolError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    content: [{ type: "text" as const, text: `Error: ${message}` }],
+  };
 }
 
-// Core EVM RPC Methods
+server.tool(
+  "list_supported_networks",
+  "Lists all configured networks and providers available to this server",
+  {},
+  async () => {
+    try {
+      return {
+        content: [
+          {
+            type: "text",
+            text: formatResponse(
+              buildSupportedNetworksReport(config),
+              "Supported Networks and Providers",
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
 
 server.tool(
   "web3_clientVersion",
   "Returns the current client version",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("web3_clientVersion");
+      const result = await makeRPCCall(
+        config,
+        "web3_clientVersion",
+        [],
+        network,
+      );
       return {
         content: [
           {
@@ -112,15 +122,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -130,10 +133,11 @@ server.tool(
   "Returns Keccak-256 hash of the given data",
   {
     data: z.string().describe("Data to hash (hex string starting with 0x)"),
+    ...networkSchema,
   },
-  async ({ data }) => {
+  async ({ data, network }) => {
     try {
-      const result = await makeRPCCall("web3_sha3", [data]);
+      const result = await makeRPCCall(config, "web3_sha3", [data], network);
       return {
         content: [
           {
@@ -142,15 +146,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -158,11 +155,11 @@ server.tool(
 server.tool(
   "eth_blockNumber",
   "Returns the number of the most recent block",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("eth_blockNumber");
-      const blockNumber = parseInt(result, 16);
+      const result = await makeRPCCall(config, "eth_blockNumber", [], network);
+      const blockNumber = parseInt(String(result), 16);
       return {
         content: [
           {
@@ -178,15 +175,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -201,14 +191,23 @@ server.tool(
       .optional()
       .default("latest")
       .describe("Block number or 'latest', 'earliest', 'pending'"),
+    ...networkSchema,
   },
-  async ({ address, blockNumber }) => {
+  async ({ address, blockNumber, network }) => {
     try {
-      const result = await makeRPCCall("eth_getBalance", [
-        address,
-        blockNumber,
-      ]);
-      const balance = ethers.formatEther(result);
+      const chain = resolveNetwork(network, config);
+      const result = await makeRPCCall(
+        config,
+        "eth_getBalance",
+        [address, blockNumber],
+        network,
+      );
+      const balance = ethers.formatUnits(
+        String(result),
+        chain.nativeCurrency.decimals,
+      );
+      const symbolKey = `balance_${chain.nativeCurrency.symbol.toLowerCase()}`;
+
       return {
         content: [
           {
@@ -216,8 +215,10 @@ server.tool(
             text: formatResponse(
               {
                 address,
+                network: chain.slug,
                 balance_wei: result,
-                balance_eth: balance,
+                [symbolKey]: balance,
+                native_symbol: chain.nativeCurrency.symbol,
                 block: blockNumber,
               },
               "Account Balance",
@@ -225,15 +226,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -248,14 +242,17 @@ server.tool(
       .optional()
       .default("latest")
       .describe("Block number or 'latest', 'earliest', 'pending'"),
+    ...networkSchema,
   },
-  async ({ address, blockNumber }) => {
+  async ({ address, blockNumber, network }) => {
     try {
-      const result = await makeRPCCall("eth_getTransactionCount", [
-        address,
-        blockNumber,
-      ]);
-      const nonce = parseInt(result, 16);
+      const result = await makeRPCCall(
+        config,
+        "eth_getTransactionCount",
+        [address, blockNumber],
+        network,
+      );
+      const nonce = parseInt(String(result), 16);
       return {
         content: [
           {
@@ -272,15 +269,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -297,13 +287,16 @@ server.tool(
       .optional()
       .default(false)
       .describe("Include full transaction objects"),
+    ...networkSchema,
   },
-  async ({ blockNumber, includeTransactions }) => {
+  async ({ blockNumber, includeTransactions, network }) => {
     try {
-      const result = await makeRPCCall("eth_getBlockByNumber", [
-        blockNumber,
-        includeTransactions,
-      ]);
+      const result = await makeRPCCall(
+        config,
+        "eth_getBlockByNumber",
+        [blockNumber, includeTransactions],
+        network,
+      );
       if (!result) {
         return {
           content: [
@@ -315,15 +308,26 @@ server.tool(
         };
       }
 
+      const block = result as {
+        number: string;
+        hash: string;
+        parentHash: string;
+        timestamp: string;
+        gasLimit: string;
+        gasUsed: string;
+        transactions: unknown[];
+        baseFeePerGas?: string;
+      };
+
       const blockInfo = {
-        number: result.number,
-        hash: result.hash,
-        parentHash: result.parentHash,
-        timestamp: result.timestamp,
-        gasLimit: result.gasLimit,
-        gasUsed: result.gasUsed,
-        transactionCount: result.transactions.length,
-        baseFeePerGas: result.baseFeePerGas,
+        number: block.number,
+        hash: block.hash,
+        parentHash: block.parentHash,
+        timestamp: block.timestamp,
+        gasLimit: block.gasLimit,
+        gasUsed: block.gasUsed,
+        transactionCount: block.transactions.length,
+        baseFeePerGas: block.baseFeePerGas,
       };
 
       return {
@@ -334,15 +338,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -352,10 +349,16 @@ server.tool(
   "Returns the information about a transaction requested by transaction hash",
   {
     txHash: z.string().describe("Transaction hash"),
+    ...networkSchema,
   },
-  async ({ txHash }) => {
+  async ({ txHash, network }) => {
     try {
-      const result = await makeRPCCall("eth_getTransactionByHash", [txHash]);
+      const result = await makeRPCCall(
+        config,
+        "eth_getTransactionByHash",
+        [txHash],
+        network,
+      );
       if (!result) {
         return {
           content: [
@@ -375,15 +378,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -393,10 +389,16 @@ server.tool(
   "Returns the receipt of a transaction by transaction hash",
   {
     txHash: z.string().describe("Transaction hash"),
+    ...networkSchema,
   },
-  async ({ txHash }) => {
+  async ({ txHash, network }) => {
     try {
-      const result = await makeRPCCall("eth_getTransactionReceipt", [txHash]);
+      const result = await makeRPCCall(
+        config,
+        "eth_getTransactionReceipt",
+        [txHash],
+        network,
+      );
       if (!result) {
         return {
           content: [
@@ -416,15 +418,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -444,20 +439,23 @@ server.tool(
     value: z.string().optional().describe("Value in wei (optional)"),
     gas: z.string().optional().describe("Gas limit (optional)"),
     gasPrice: z.string().optional().describe("Gas price (optional)"),
+    ...networkSchema,
   },
-  async ({ to, data, blockNumber, from, value, gas, gasPrice }) => {
+  async ({ to, data, blockNumber, from, value, gas, gasPrice, network }) => {
     try {
-      const txObject: any = {
-        to,
-        data,
-      };
+      const txObject: Record<string, string> = { to, data };
 
       if (from) txObject.from = from;
       if (value) txObject.value = value;
       if (gas) txObject.gas = gas;
       if (gasPrice) txObject.gasPrice = gasPrice;
 
-      const result = await makeRPCCall("eth_call", [txObject, blockNumber]);
+      const result = await makeRPCCall(
+        config,
+        "eth_call",
+        [txObject, blockNumber],
+        network,
+      );
 
       return {
         content: [
@@ -475,15 +473,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -501,10 +492,11 @@ server.tool(
     value: z.string().optional().describe("Value in wei"),
     gas: z.string().optional().describe("Gas limit"),
     gasPrice: z.string().optional().describe("Gas price"),
+    ...networkSchema,
   },
-  async ({ to, data, from, value, gas, gasPrice }) => {
+  async ({ to, data, from, value, gas, gasPrice, network }) => {
     try {
-      const txObject: any = {};
+      const txObject: Record<string, string> = {};
 
       if (to) txObject.to = to;
       if (data) txObject.data = data;
@@ -513,8 +505,13 @@ server.tool(
       if (gas) txObject.gas = gas;
       if (gasPrice) txObject.gasPrice = gasPrice;
 
-      const result = await makeRPCCall("eth_estimateGas", [txObject]);
-      const gasEstimate = parseInt(result, 16);
+      const result = await makeRPCCall(
+        config,
+        "eth_estimateGas",
+        [txObject],
+        network,
+      );
+      const gasEstimate = parseInt(String(result), 16);
 
       return {
         content: [
@@ -531,15 +528,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -551,12 +541,16 @@ server.tool(
     signedTransactionData: z
       .string()
       .describe("Signed transaction data (hex string)"),
+    ...networkSchema,
   },
-  async ({ signedTransactionData }) => {
+  async ({ signedTransactionData, network }) => {
     try {
-      const result = await makeRPCCall("eth_sendRawTransaction", [
-        signedTransactionData,
-      ]);
+      const result = await makeRPCCall(
+        config,
+        "eth_sendRawTransaction",
+        [signedTransactionData],
+        network,
+      );
 
       return {
         content: [
@@ -572,15 +566,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -588,11 +575,11 @@ server.tool(
 server.tool(
   "eth_gasPrice",
   "Returns the current price per gas in wei",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("eth_gasPrice");
-      const gasPrice = parseInt(result, 16);
+      const result = await makeRPCCall(config, "eth_gasPrice", [], network);
+      const gasPrice = parseInt(String(result), 16);
       const gasPriceGwei = ethers.formatUnits(gasPrice, "gwei");
 
       return {
@@ -610,15 +597,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -633,10 +613,16 @@ server.tool(
       .optional()
       .default("latest")
       .describe("Block number or 'latest', 'earliest', 'pending'"),
+    ...networkSchema,
   },
-  async ({ address, blockNumber }) => {
+  async ({ address, blockNumber, network }) => {
     try {
-      const result = await makeRPCCall("eth_getCode", [address, blockNumber]);
+      const result = await makeRPCCall(
+        config,
+        "eth_getCode",
+        [address, blockNumber],
+        network,
+      );
 
       return {
         content: [
@@ -646,7 +632,7 @@ server.tool(
               {
                 address,
                 code: result,
-                code_length: result.length,
+                code_length: String(result).length,
                 block: blockNumber,
               },
               "Contract Code",
@@ -654,15 +640,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -678,14 +657,16 @@ server.tool(
       .optional()
       .default("latest")
       .describe("Block number or 'latest', 'earliest', 'pending'"),
+    ...networkSchema,
   },
-  async ({ address, position, blockNumber }) => {
+  async ({ address, position, blockNumber, network }) => {
     try {
-      const result = await makeRPCCall("eth_getStorageAt", [
-        address,
-        position,
-        blockNumber,
-      ]);
+      const result = await makeRPCCall(
+        config,
+        "eth_getStorageAt",
+        [address, position, blockNumber],
+        network,
+      );
 
       return {
         content: [
@@ -703,15 +684,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -733,34 +707,40 @@ server.tool(
       .array(z.string())
       .optional()
       .describe("Array of topic filters (optional)"),
+    ...networkSchema,
   },
-  async ({ fromBlock, toBlock, address, topics }) => {
+  async ({ fromBlock, toBlock, address, topics, network }) => {
     try {
-      const filter: any = {};
+      const filter: Record<string, unknown> = {};
 
       if (fromBlock) filter.fromBlock = fromBlock;
       if (toBlock) filter.toBlock = toBlock;
       if (address) filter.address = address;
       if (topics) filter.topics = topics;
 
-      const result = await makeRPCCall("eth_getLogs", [filter]);
+      const result = (await makeRPCCall(
+        config,
+        "eth_getLogs",
+        [filter],
+        network,
+      )) as Array<Record<string, unknown>>;
 
-      // Format logs specially for better readability
       let logText = `**Event Logs**\n\n`;
       logText += `**Total Logs:** ${result.length}\n`;
       logText += `**Filter:** ${JSON.stringify(filter, null, 2)}\n\n`;
 
       if (result.length > 0) {
         logText += `**Logs:**\n\n`;
-        result.forEach((log: any, index: number) => {
+        result.forEach((log, index) => {
           logText += `**Log ${index + 1}:**\n`;
           logText += `  **Address:** ${log.address}\n`;
-          logText += `  **Block:** ${log.blockNumber} (${parseInt(log.blockNumber, 16)})\n`;
+          logText += `  **Block:** ${log.blockNumber} (${parseInt(String(log.blockNumber), 16)})\n`;
           logText += `  **Transaction:** ${log.transactionHash}\n`;
           logText += `  **Log Index:** ${log.logIndex}\n`;
-          logText += `  **Topics:** [${log.topics.length} topics]\n`;
-          if (log.topics && log.topics.length > 0) {
-            log.topics.forEach((topic: string, topicIndex: number) => {
+          const logTopics = log.topics as string[] | undefined;
+          logText += `  **Topics:** [${logTopics?.length ?? 0} topics]\n`;
+          if (logTopics && logTopics.length > 0) {
+            logTopics.forEach((topic, topicIndex) => {
               logText += `    ${topicIndex}: ${topic}\n`;
             });
           }
@@ -774,22 +754,10 @@ server.tool(
       }
 
       return {
-        content: [
-          {
-            type: "text",
-            text: logText,
-          },
-        ],
+        content: [{ type: "text", text: logText }],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -797,25 +765,12 @@ server.tool(
 server.tool(
   "eth_chainId",
   "Returns the chain ID of the current network",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("eth_chainId");
-      const chainId = parseInt(result, 16);
-
-      const chainNames: { [key: number]: string } = {
-        1: "Ethereum Mainnet",
-        11155111: "Sepolia Testnet",
-        5: "Goerli Testnet",
-        137: "Polygon Mainnet",
-        80001: "Polygon Mumbai Testnet",
-        42161: "Arbitrum One",
-        421614: "Arbitrum Sepolia",
-        10: "Optimism",
-        420: "Optimism Sepolia",
-        56: "BNB Smart Chain",
-        97: "BNB Smart Chain Testnet",
-      };
+      const chain = resolveNetwork(network, config);
+      const result = await makeRPCCall(config, "eth_chainId", [], network);
+      const chainId = parseInt(String(result), 16);
 
       return {
         content: [
@@ -825,85 +780,60 @@ server.tool(
               {
                 chain_id_hex: result,
                 chain_id_decimal: chainId,
-                chain_name: chainNames[chainId] || "Unknown Network",
+                chain_name: chain.name,
+                network_slug: chain.slug,
               },
               "Network Chain ID",
             ),
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
 
-server.tool("net_version", "Returns the current network id", {}, async () => {
-  try {
-    const result = await makeRPCCall("net_version");
+server.tool(
+  "net_version",
+  "Returns the current network id",
+  { ...networkSchema },
+  async ({ network }) => {
+    try {
+      const result = await makeRPCCall(config, "net_version", [], network);
 
-    return {
-      content: [
-        {
-          type: "text",
-          text: formatResponse(
-            {
-              network_id: result,
-            },
-            "Network Version",
-          ),
-        },
-      ],
-    };
-  } catch (error: any) {
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error: ${error.message}`,
-        },
-      ],
-    };
-  }
-});
+      return {
+        content: [
+          {
+            type: "text",
+            text: formatResponse({ network_id: result }, "Network Version"),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
 
 server.tool(
   "net_listening",
   "Returns true if client is actively listening for network connections",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("net_listening");
+      const result = await makeRPCCall(config, "net_listening", [], network);
 
       return {
         content: [
           {
             type: "text",
-            text: formatResponse(
-              {
-                is_listening: result,
-              },
-              "Network Status",
-            ),
+            text: formatResponse({ is_listening: result }, "Network Status"),
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -911,11 +841,11 @@ server.tool(
 server.tool(
   "net_peerCount",
   "Returns number of peers currently connected to the client",
-  {},
-  async () => {
+  { ...networkSchema },
+  async ({ network }) => {
     try {
-      const result = await makeRPCCall("net_peerCount");
-      const peerCount = parseInt(result, 16);
+      const result = await makeRPCCall(config, "net_peerCount", [], network);
+      const peerCount = parseInt(String(result), 16);
 
       return {
         content: [
@@ -931,15 +861,8 @@ server.tool(
           },
         ],
       };
-    } catch (error: any) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${error.message}`,
-          },
-        ],
-      };
+    } catch (error) {
+      return toolError(error);
     }
   },
 );
@@ -947,9 +870,11 @@ server.tool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`EVM MCP Server running on stdio`);
-  console.error(`Connected to: ${RPC_URL}`);
-  console.error(`Chain ID: ${CHAIN_ID}`);
+  console.error("EVM MCP Server running on stdio");
+  console.error(`Default network: ${config.defaultNetwork}`);
+  console.error(
+    `Configured providers: ${config.providerOrder.join(", ") || "none"}`,
+  );
 }
 
 main().catch((error) => {
