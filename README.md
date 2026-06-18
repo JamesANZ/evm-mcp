@@ -56,6 +56,7 @@ cd evm-mcp && npm install && npm run build
 ### 🌍 Network
 
 - **`list_supported_networks`** – List configured networks and providers
+- **`list_known_addresses`** – List configured wallet aliases and known token/contract addresses
 - **`eth_chainId`** – Get chain ID
 - **`net_version`** – Get network version
 - **`net_listening`** – Check if listening
@@ -135,6 +136,8 @@ Restart Claude Desktop after configuration.
 | `RPC_PROVIDER_ORDER` | No       | Comma-separated provider fallback order (default: `infura,alchemy`) |
 | `CUSTOM_PROVIDERS`   | One of\* | JSON array of user-defined providers                                |
 | `CUSTOM_NETWORKS`    | One of\* | JSON array of user-defined networks                                 |
+| `KNOWN_ADDRESSES`    | No       | JSON array of known tokens/contracts (network-scoped)               |
+| `WALLET_ADDRESSES`   | No       | JSON array of personal wallet and contract aliases                  |
 
 \*At least one provider API key, custom provider, or custom network with `rpcUrl` is required.
 
@@ -183,6 +186,43 @@ Register arbitrary chains by name:
 
 Or route through a provider by setting `provider` and adding the network slug to that provider's `networkUrls`.
 
+### Known Addresses (`KNOWN_ADDRESSES`)
+
+Register tokens and contracts by name so tools accept aliases like `USDC` instead of raw hex addresses. Each entry is scoped to a network:
+
+```json
+"KNOWN_ADDRESSES": "[{\"name\":\"USDC\",\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"network\":\"ethereum\",\"type\":\"token\",\"decimals\":6,\"aliases\":[\"usd-coin\"]}]"
+```
+
+| Field      | Required | Description                                  |
+| ---------- | -------- | -------------------------------------------- |
+| `name`     | yes      | Primary lookup key                           |
+| `address`  | yes      | Checksummed contract address                 |
+| `network`  | yes      | Chain slug, name, chain ID, or network alias |
+| `type`     | no       | `token` or `contract` (default: `contract`)  |
+| `decimals` | no       | Token decimals for formatted balances        |
+| `aliases`  | no       | Extra lookup keys                            |
+
+When `eth_getBalance` is called with a token alias, the server uses the first configured wallet in `WALLET_ADDRESSES` as the token holder.
+
+### Wallet Addresses (`WALLET_ADDRESSES`)
+
+Register personal wallets and contracts by alias so you can say "check my personal wallet" instead of pasting hex:
+
+```json
+"WALLET_ADDRESSES": "[{\"name\":\"my-wallet\",\"address\":\"0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f\",\"aliases\":[\"personal\",\"my wallet\"],\"description\":\"Main EOA\"}]"
+```
+
+| Field         | Required | Description                                    |
+| ------------- | -------- | ---------------------------------------------- |
+| `name`        | yes      | Primary lookup key                             |
+| `address`     | yes      | Wallet or contract address                     |
+| `network`     | no       | Scope alias to one chain (default: all chains) |
+| `aliases`     | no       | Extra lookup keys                              |
+| `description` | no       | Human-readable note                            |
+
+Address aliases work in `eth_getBalance`, `eth_getCode`, `eth_call`, `eth_getLogs`, and other tools that accept address parameters. Use `list_known_addresses` to discover configured aliases.
+
 ### Migration from RPC_URL
 
 ```diff
@@ -221,13 +261,13 @@ Query the current block number:
 
 ### Get Account Balance
 
-Check an address balance:
+Check an address balance using a hex address or configured alias:
 
 ```json
 {
   "tool": "eth_getBalance",
   "arguments": {
-    "address": "0x742d35Cc6634C0532925a3b8D6Ac6e2F0C4C9B7C",
+    "address": "personal",
     "blockNumber": "latest"
   }
 }

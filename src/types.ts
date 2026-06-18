@@ -24,6 +24,36 @@ export interface ProviderConfig {
   networkUrls: Record<string, string>;
 }
 
+export interface KnownAddressConfig {
+  name: string;
+  address: string;
+  network: string;
+  networkSlug: string;
+  type: "token" | "contract";
+  decimals?: number;
+  aliases?: string[];
+  source: "custom";
+}
+
+export interface WalletAddressConfig {
+  name: string;
+  address: string;
+  networkSlug?: string;
+  aliases?: string[];
+  description?: string;
+  source: "custom";
+}
+
+export interface ResolvedAddress {
+  address: string;
+  input: string;
+  kind?: "wallet" | "known";
+  type?: "token" | "contract";
+  decimals?: number;
+  matchedAlias?: string;
+  name?: string;
+}
+
 export interface AppConfig {
   infuraApiKey?: string;
   alchemyApiKey?: string;
@@ -32,6 +62,8 @@ export interface AppConfig {
   providerOrder: string[];
   customProviders: ProviderConfig[];
   customNetworks: NetworkConfig[];
+  knownAddresses: KnownAddressConfig[];
+  walletAddresses: WalletAddressConfig[];
   warnings: string[];
 }
 

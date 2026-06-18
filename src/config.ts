@@ -1,5 +1,9 @@
 import { getBuiltinChains } from "./chains/registry.js";
 import { parseCustomNetworks } from "./chains/custom.js";
+import {
+  parseKnownAddresses,
+  parseWalletAddresses,
+} from "./addresses/custom.js";
 import { getBuiltinProviders } from "./providers/builtin.js";
 import { parseCustomProviders } from "./providers/custom.js";
 import { AppConfig, NetworkConfig } from "./types.js";
@@ -17,6 +21,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     .filter(Boolean);
 
   const customNetworks = parseCustomNetworks(env.CUSTOM_NETWORKS);
+
+  const allNetworksForParsing = getAllNetworksFromParts(customNetworks);
+
+  const knownAddresses = parseKnownAddresses(
+    env.KNOWN_ADDRESSES,
+    allNetworksForParsing,
+  );
+  const walletAddresses = parseWalletAddresses(
+    env.WALLET_ADDRESSES,
+    allNetworksForParsing,
+  );
 
   const knownNetworkSlugs = new Set<string>();
   for (const chain of getBuiltinChains()) {
@@ -69,8 +84,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     providerOrder,
     customProviders,
     customNetworks,
+    knownAddresses,
+    walletAddresses,
     warnings,
   };
+}
+
+function getAllNetworksFromParts(
+  customNetworks: NetworkConfig[],
+): NetworkConfig[] {
+  const byChainId = new Map<number, NetworkConfig>();
+  for (const chain of getBuiltinChains()) {
+    byChainId.set(chain.chainId, { ...chain });
+  }
+  for (const network of customNetworks) {
+    byChainId.set(network.chainId, { ...network });
+  }
+  return Array.from(byChainId.values());
 }
 
 export function getAllNetworks(config: AppConfig): NetworkConfig[] {

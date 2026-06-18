@@ -9,6 +9,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     providerOrder: ["infura"],
     customProviders: [],
     customNetworks: [],
+    knownAddresses: [],
+    walletAddresses: [],
     warnings: [],
     infuraApiKey: "infura-key",
     ...overrides,

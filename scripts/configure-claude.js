@@ -95,6 +95,12 @@ function buildEnv() {
   if (process.env.CUSTOM_NETWORKS) {
     env.CUSTOM_NETWORKS = process.env.CUSTOM_NETWORKS;
   }
+  if (process.env.KNOWN_ADDRESSES) {
+    env.KNOWN_ADDRESSES = process.env.KNOWN_ADDRESSES;
+  }
+  if (process.env.WALLET_ADDRESSES) {
+    env.WALLET_ADDRESSES = process.env.WALLET_ADDRESSES;
+  }
 
   return env;
 }

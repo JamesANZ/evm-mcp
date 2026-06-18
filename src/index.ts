@@ -5,10 +5,57 @@ import { ethers } from "ethers";
 import { loadConfig } from "./config.js";
 import { makeRPCCall } from "./rpc/client.js";
 import { resolveNetwork } from "./network/resolve.js";
+import { resolveAddress } from "./addresses/resolve.js";
 import { networkSchema } from "./schemas.js";
 import { buildSupportedNetworksReport } from "./list-networks.js";
+import { buildAddressRegistryReport } from "./list-addresses.js";
+import { AppConfig, ResolvedAddress } from "./types.js";
 
 const config = loadConfig();
+
+const addressParamDescription =
+  "Address, wallet alias (e.g. my-wallet), or known name (e.g. USDC)";
+
+const ERC20_BALANCE_OF = new ethers.Interface([
+  "function balanceOf(address owner) view returns (uint256)",
+]);
+
+function resolveAddressParam(
+  input: string,
+  network: string | number | undefined,
+): ResolvedAddress {
+  return resolveAddress(input, network, config);
+}
+
+function getDefaultWalletHolder(
+  chainSlug: string,
+  appConfig: AppConfig,
+): string | undefined {
+  const scoped = appConfig.walletAddresses.filter(
+    (w) => w.networkSlug === chainSlug,
+  );
+  const global = appConfig.walletAddresses.filter((w) => !w.networkSlug);
+  return (scoped[0] ?? global[0])?.address;
+}
+
+async function getTokenBalance(
+  tokenAddress: string,
+  holderAddress: string,
+  blockNumber: string,
+  network: string | number | undefined,
+): Promise<string> {
+  const data = ERC20_BALANCE_OF.encodeFunctionData("balanceOf", [
+    holderAddress,
+  ]);
+  return String(
+    await makeRPCCall(
+      config,
+      "eth_call",
+      [{ to: tokenAddress, data }, blockNumber],
+      network,
+    ),
+  );
+}
 
 const server = new McpServer({
   name: "evm-mcp",
@@ -78,6 +125,29 @@ function toolError(error: unknown) {
     content: [{ type: "text" as const, text: `Error: ${message}` }],
   };
 }
+
+server.tool(
+  "list_known_addresses",
+  "Lists configured wallet aliases and known token/contract addresses",
+  {},
+  async () => {
+    try {
+      return {
+        content: [
+          {
+            type: "text",
+            text: formatResponse(
+              buildAddressRegistryReport(config),
+              "Known Addresses and Wallet Aliases",
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
 
 server.tool(
   "list_supported_networks",
@@ -185,7 +255,7 @@ server.tool(
   "eth_getBalance",
   "Returns the balance of the account of given address",
   {
-    address: z.string().describe("Address to check balance for"),
+    address: z.string().describe(addressParamDescription),
     blockNumber: z
       .string()
       .optional()
@@ -196,10 +266,52 @@ server.tool(
   async ({ address, blockNumber, network }) => {
     try {
       const chain = resolveNetwork(network, config);
+      const resolved = resolveAddressParam(address, network);
+
+      if (resolved.kind === "known" && resolved.type === "token") {
+        const holder = getDefaultWalletHolder(chain.slug, config);
+        if (!holder) {
+          throw new Error(
+            `Token balance for "${resolved.name ?? address}" requires a configured wallet in WALLET_ADDRESSES`,
+          );
+        }
+
+        const decimals = resolved.decimals ?? 18;
+        const balanceRaw = await getTokenBalance(
+          resolved.address,
+          holder,
+          blockNumber,
+          network,
+        );
+        const balance = ethers.formatUnits(balanceRaw, decimals);
+        const symbolKey = `balance_${(resolved.name ?? "token").toLowerCase()}`;
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: formatResponse(
+                {
+                  resolved_alias: resolved.matchedAlias ?? resolved.name,
+                  token_address: resolved.address,
+                  holder_address: holder,
+                  network: chain.slug,
+                  balance_raw: balanceRaw,
+                  [symbolKey]: balance,
+                  decimals,
+                  block: blockNumber,
+                },
+                "Token Balance",
+              ),
+            },
+          ],
+        };
+      }
+
       const result = await makeRPCCall(
         config,
         "eth_getBalance",
-        [address, blockNumber],
+        [resolved.address, blockNumber],
         network,
       );
       const balance = ethers.formatUnits(
@@ -214,7 +326,8 @@ server.tool(
             type: "text",
             text: formatResponse(
               {
-                address,
+                address: resolved.address,
+                resolved_alias: resolved.matchedAlias ?? null,
                 network: chain.slug,
                 balance_wei: result,
                 [symbolKey]: balance,
@@ -236,7 +349,7 @@ server.tool(
   "eth_getTransactionCount",
   "Returns the number of transactions sent from an address",
   {
-    address: z.string().describe("Address to check transaction count for"),
+    address: z.string().describe(addressParamDescription),
     blockNumber: z
       .string()
       .optional()
@@ -246,10 +359,11 @@ server.tool(
   },
   async ({ address, blockNumber, network }) => {
     try {
+      const resolved = resolveAddressParam(address, network);
       const result = await makeRPCCall(
         config,
         "eth_getTransactionCount",
-        [address, blockNumber],
+        [resolved.address, blockNumber],
         network,
       );
       const nonce = parseInt(String(result), 16);
@@ -259,7 +373,8 @@ server.tool(
             type: "text",
             text: formatResponse(
               {
-                address,
+                address: resolved.address,
+                resolved_alias: resolved.matchedAlias ?? null,
                 nonce_hex: result,
                 nonce_decimal: nonce,
                 block: blockNumber,
@@ -428,14 +543,17 @@ server.tool(
   "eth_call",
   "Executes a new message call immediately without creating a transaction",
   {
-    to: z.string().describe("Contract address"),
+    to: z.string().describe(`${addressParamDescription} (contract target)`),
     data: z.string().describe("Data to send (hex string)"),
     blockNumber: z
       .string()
       .optional()
       .default("latest")
       .describe("Block number or 'latest', 'earliest', 'pending'"),
-    from: z.string().optional().describe("From address (optional)"),
+    from: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription} (optional sender)`),
     value: z.string().optional().describe("Value in wei (optional)"),
     gas: z.string().optional().describe("Gas limit (optional)"),
     gasPrice: z.string().optional().describe("Gas price (optional)"),
@@ -443,9 +561,13 @@ server.tool(
   },
   async ({ to, data, blockNumber, from, value, gas, gasPrice, network }) => {
     try {
-      const txObject: Record<string, string> = { to, data };
+      const resolvedTo = resolveAddressParam(to, network);
+      const txObject: Record<string, string> = {
+        to: resolvedTo.address,
+        data,
+      };
 
-      if (from) txObject.from = from;
+      if (from) txObject.from = resolveAddressParam(from, network).address;
       if (value) txObject.value = value;
       if (gas) txObject.gas = gas;
       if (gasPrice) txObject.gasPrice = gasPrice;
@@ -464,7 +586,8 @@ server.tool(
             text: formatResponse(
               {
                 result,
-                to,
+                to: resolvedTo.address,
+                resolved_to_alias: resolvedTo.matchedAlias ?? null,
                 data,
                 block: blockNumber,
               },
@@ -486,9 +609,12 @@ server.tool(
     to: z
       .string()
       .optional()
-      .describe("Contract address (optional for contract creation)"),
+      .describe(`${addressParamDescription} (optional contract target)`),
     data: z.string().optional().describe("Data to send (hex string)"),
-    from: z.string().optional().describe("From address"),
+    from: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription} (optional sender)`),
     value: z.string().optional().describe("Value in wei"),
     gas: z.string().optional().describe("Gas limit"),
     gasPrice: z.string().optional().describe("Gas price"),
@@ -498,9 +624,9 @@ server.tool(
     try {
       const txObject: Record<string, string> = {};
 
-      if (to) txObject.to = to;
+      if (to) txObject.to = resolveAddressParam(to, network).address;
       if (data) txObject.data = data;
-      if (from) txObject.from = from;
+      if (from) txObject.from = resolveAddressParam(from, network).address;
       if (value) txObject.value = value;
       if (gas) txObject.gas = gas;
       if (gasPrice) txObject.gasPrice = gasPrice;
@@ -607,7 +733,7 @@ server.tool(
   "eth_getCode",
   "Returns code at a given address",
   {
-    address: z.string().describe("Contract address"),
+    address: z.string().describe(`${addressParamDescription} (contract)`),
     blockNumber: z
       .string()
       .optional()
@@ -617,10 +743,11 @@ server.tool(
   },
   async ({ address, blockNumber, network }) => {
     try {
+      const resolved = resolveAddressParam(address, network);
       const result = await makeRPCCall(
         config,
         "eth_getCode",
-        [address, blockNumber],
+        [resolved.address, blockNumber],
         network,
       );
 
@@ -630,7 +757,8 @@ server.tool(
             type: "text",
             text: formatResponse(
               {
-                address,
+                address: resolved.address,
+                resolved_alias: resolved.matchedAlias ?? null,
                 code: result,
                 code_length: String(result).length,
                 block: blockNumber,
@@ -650,7 +778,7 @@ server.tool(
   "eth_getStorageAt",
   "Returns the value from a storage position at a given address",
   {
-    address: z.string().describe("Contract address"),
+    address: z.string().describe(`${addressParamDescription} (contract)`),
     position: z.string().describe("Storage position (hex string)"),
     blockNumber: z
       .string()
@@ -661,10 +789,11 @@ server.tool(
   },
   async ({ address, position, blockNumber, network }) => {
     try {
+      const resolved = resolveAddressParam(address, network);
       const result = await makeRPCCall(
         config,
         "eth_getStorageAt",
-        [address, position, blockNumber],
+        [resolved.address, position, blockNumber],
         network,
       );
 
@@ -674,7 +803,8 @@ server.tool(
             type: "text",
             text: formatResponse(
               {
-                address,
+                address: resolved.address,
+                resolved_alias: resolved.matchedAlias ?? null,
                 position,
                 value: result,
                 block: blockNumber,
@@ -702,7 +832,10 @@ server.tool(
       .string()
       .optional()
       .describe("Ending block (hex or 'latest', 'earliest', 'pending')"),
-    address: z.string().optional().describe("Contract address (optional)"),
+    address: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription} (optional contract filter)`),
     topics: z
       .array(z.string())
       .optional()
@@ -715,7 +848,8 @@ server.tool(
 
       if (fromBlock) filter.fromBlock = fromBlock;
       if (toBlock) filter.toBlock = toBlock;
-      if (address) filter.address = address;
+      if (address)
+        filter.address = resolveAddressParam(address, network).address;
       if (topics) filter.topics = topics;
 
       const result = (await makeRPCCall(
