@@ -18,6 +18,16 @@ export function getJsonRpcProvider(
   return provider;
 }
 
+export function getProviderForNetwork(
+  config: AppConfig,
+  networkInput?: string | number,
+): { provider: ethers.JsonRpcProvider; network: ReturnType<typeof resolveNetwork> } {
+  const network = resolveNetwork(networkInput, config);
+  const { url } = resolveRpcUrl(network, config);
+  const provider = getJsonRpcProvider(url, network.chainId);
+  return { provider, network };
+}
+
 export async function makeRPCCall(
   config: AppConfig,
   method: string,

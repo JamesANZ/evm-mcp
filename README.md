@@ -49,6 +49,18 @@ cd evm-mcp && npm install && npm run build
 - **`eth_sendRawTransaction`** – Send signed transaction
 - **`eth_gasPrice`** – Get current gas price
 
+### 🧪 Transaction Simulation (read-only, never broadcasts)
+
+Craft transactions in natural language and simulate them against forked/overridden EVM state. Reports whether a transaction would succeed or revert, the revert reason in plain English, estimated gas, and balance/state changes. Supports address aliases and ENS names (e.g. `alice.eth`). By default the sender is funded with virtual ETH so a simulation can run "from" any address; set `fund: false` to use real balances.
+
+- **`simulate_native_transfer`** – Simulate sending native currency (e.g. "Transfer 100 ETH from A to B")
+- **`simulate_erc20_transfer`** – Simulate an ERC20 transfer with human amounts (e.g. "Transfer 10 USDC to alice.eth from fun.eth")
+- **`simulate_contract_call`** – Encode a function signature + args and simulate the call
+- **`simulate_transaction`** – Simulate a raw transaction (from/to/value/data)
+- **`encode_function_data`** – Encode calldata from a human-readable signature (pure helper, no RPC)
+
+> These tools only use `eth_call`, `eth_estimateGas`, and `debug_traceCall` (when the provider supports it). They never sign or send a real transaction. Real state diffs are used when `debug_traceCall` is available; otherwise changes are inferred from the decoded intent.
+
 ### 📊 Events & Logs
 
 - **`eth_getLogs`** – Get event logs

@@ -5,11 +5,15 @@ import { ethers } from "ethers";
 import { loadConfig } from "./config.js";
 import { makeRPCCall } from "./rpc/client.js";
 import { resolveNetwork } from "./network/resolve.js";
-import { resolveAddress } from "./addresses/resolve.js";
+import { resolveAddress, resolveAddressAsync } from "./addresses/resolve.js";
 import { networkSchema } from "./schemas.js";
 import { buildSupportedNetworksReport } from "./list-networks.js";
 import { buildAddressRegistryReport } from "./list-addresses.js";
 import { AppConfig, ResolvedAddress } from "./types.js";
+import { encodeFunctionData } from "./abi/encode.js";
+import { ERC20_INTERFACE } from "./abi/erc20.js";
+import { simulateTransaction } from "./simulate/engine.js";
+import { buildSimulationReport } from "./simulate/report.js";
 
 const config = loadConfig();
 
@@ -992,6 +996,399 @@ server.tool(
               },
               "Connected Peers",
             ),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
+
+async function readErc20Decimals(
+  tokenAddress: string,
+  network: string | number | undefined,
+  fallback?: number,
+): Promise<number | undefined> {
+  try {
+    const data = ERC20_INTERFACE.encodeFunctionData("decimals", []);
+    const raw = await makeRPCCall(
+      config,
+      "eth_call",
+      [{ to: tokenAddress, data }, "latest"],
+      network,
+    );
+    const [decimals] = ERC20_INTERFACE.decodeFunctionResult(
+      "decimals",
+      String(raw),
+    );
+    return Number(decimals);
+  } catch {
+    return fallback;
+  }
+}
+
+async function readErc20Symbol(
+  tokenAddress: string,
+  network: string | number | undefined,
+  fallback?: string,
+): Promise<string | undefined> {
+  try {
+    const data = ERC20_INTERFACE.encodeFunctionData("symbol", []);
+    const raw = await makeRPCCall(
+      config,
+      "eth_call",
+      [{ to: tokenAddress, data }, "latest"],
+      network,
+    );
+    const [symbol] = ERC20_INTERFACE.decodeFunctionResult("symbol", String(raw));
+    return String(symbol);
+  } catch {
+    return fallback;
+  }
+}
+
+server.tool(
+  "encode_function_data",
+  "Encodes a contract function call into calldata (hex) from a human-readable signature and arguments. Pure helper - performs no RPC call. Example signature: 'transfer(address,uint256)'.",
+  {
+    signature: z
+      .string()
+      .describe(
+        "Human-readable function signature, e.g. 'transfer(address,uint256)' or 'function approve(address spender, uint256 amount)'",
+      ),
+    args: z
+      .array(z.union([z.string(), z.number(), z.boolean()]))
+      .optional()
+      .default([])
+      .describe(
+        "Arguments in order. Pass integers as strings to preserve precision.",
+      ),
+  },
+  async ({ signature, args }) => {
+    try {
+      const encoded = encodeFunctionData(signature, args);
+      return {
+        content: [
+          {
+            type: "text",
+            text: formatResponse(
+              {
+                signature: encoded.signature,
+                function: encoded.functionName,
+                selector: encoded.selector,
+                data: encoded.data,
+              },
+              "Encoded Function Data",
+            ),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
+
+server.tool(
+  "simulate_transaction",
+  "Simulates a raw transaction against forked/overridden EVM state (read-only, never broadcasts). Reports whether it would succeed or revert, the revert reason in plain English, estimated gas, and balance/state changes. Use for arbitrary from/to/value/data.",
+  {
+    from: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription}, ENS name, or hex (sender)`),
+    to: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription}, ENS name, or hex (target)`),
+    value: z
+      .string()
+      .optional()
+      .describe("Value in wei (decimal or hex). Use simulate_native_transfer for ETH amounts."),
+    data: z.string().optional().describe("Calldata (hex string)"),
+    gas: z.string().optional().describe("Gas limit (optional)"),
+    fund: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe(
+        "Fund the sender with virtual ETH so the simulation works from any address (default true). Set false to use real balances.",
+      ),
+    abi: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "Optional custom error signatures for decoding reverts, e.g. 'error InsufficientBalance(uint256 available)'.",
+      ),
+    ...networkSchema,
+  },
+  async ({ from, to, value, data, gas, fund, abi, network }) => {
+    try {
+      const labels: Record<string, string> = {};
+      let fromAddr: string | undefined;
+      let toAddr: string | undefined;
+
+      if (from) {
+        const r = await resolveAddressAsync(from, network, config);
+        fromAddr = r.address;
+        if (r.name) labels[r.address.toLowerCase()] = r.name;
+      }
+      if (to) {
+        const r = await resolveAddressAsync(to, network, config);
+        toAddr = r.address;
+        if (r.name) labels[r.address.toLowerCase()] = r.name;
+      }
+
+      const result = await simulateTransaction(config, {
+        from: fromAddr,
+        to: toAddr,
+        value,
+        data,
+        gas,
+        network,
+        fund,
+        abi,
+      });
+
+      const chain = resolveNetwork(network, config);
+      return {
+        content: [
+          {
+            type: "text",
+            text: buildSimulationReport(result, {
+              labels,
+              nativeSymbol: chain.nativeCurrency.symbol,
+            }),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
+
+server.tool(
+  "simulate_contract_call",
+  "Crafts calldata from a human-readable function signature and arguments, then simulates the call against forked/overridden EVM state (read-only, never broadcasts). Ideal for arbitrary ERC20 or contract function calls described in natural language.",
+  {
+    to: z.string().describe(`${addressParamDescription}, ENS name, or hex (contract)`),
+    signature: z
+      .string()
+      .describe("Function signature, e.g. 'transfer(address,uint256)'"),
+    args: z
+      .array(z.union([z.string(), z.number(), z.boolean()]))
+      .optional()
+      .default([])
+      .describe("Arguments in order. Pass integers as strings."),
+    from: z
+      .string()
+      .optional()
+      .describe(`${addressParamDescription}, ENS name, or hex (sender)`),
+    value: z.string().optional().describe("Value in wei (decimal or hex)"),
+    fund: z.boolean().optional().default(true).describe("Fund the sender (default true)"),
+    abi: z
+      .array(z.string())
+      .optional()
+      .describe("Optional custom error signatures for decoding reverts"),
+    ...networkSchema,
+  },
+  async ({ to, signature, args, from, value, fund, abi, network }) => {
+    try {
+      const encoded = encodeFunctionData(signature, args);
+      const labels: Record<string, string> = {};
+
+      const toResolved = await resolveAddressAsync(to, network, config);
+      if (toResolved.name) labels[toResolved.address.toLowerCase()] = toResolved.name;
+
+      let fromAddr: string | undefined;
+      if (from) {
+        const r = await resolveAddressAsync(from, network, config);
+        fromAddr = r.address;
+        if (r.name) labels[r.address.toLowerCase()] = r.name;
+      }
+
+      const result = await simulateTransaction(config, {
+        from: fromAddr,
+        to: toResolved.address,
+        value,
+        data: encoded.data,
+        network,
+        fund,
+        abi,
+      });
+
+      const chain = resolveNetwork(network, config);
+      return {
+        content: [
+          {
+            type: "text",
+            text: buildSimulationReport(result, {
+              title: `Simulation: ${encoded.functionName}(...)`,
+              labels,
+              nativeSymbol: chain.nativeCurrency.symbol,
+            }),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
+
+server.tool(
+  "simulate_native_transfer",
+  "Simulates sending native currency (e.g. ETH) from one address to another against forked/overridden EVM state (read-only, never broadcasts). Reports success/failure, gas, and balance changes in plain English.",
+  {
+    from: z.string().describe(`${addressParamDescription}, ENS name, or hex (sender)`),
+    to: z.string().describe(`${addressParamDescription}, ENS name, or hex (recipient)`),
+    amount: z
+      .string()
+      .describe("Amount of native currency in whole units (e.g. '100' for 100 ETH)"),
+    fund: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Fund the sender so the transfer can be simulated from any address (default true)"),
+    ...networkSchema,
+  },
+  async ({ from, to, amount, fund, network }) => {
+    try {
+      const fromResolved = await resolveAddressAsync(from, network, config);
+      const toResolved = await resolveAddressAsync(to, network, config);
+      const chain = resolveNetwork(network, config);
+
+      let valueWei: bigint;
+      try {
+        valueWei = ethers.parseEther(amount);
+      } catch {
+        throw new Error(`Invalid amount "${amount}" for native transfer`);
+      }
+
+      const labels: Record<string, string> = {};
+      if (fromResolved.name)
+        labels[fromResolved.address.toLowerCase()] = fromResolved.name;
+      if (toResolved.name)
+        labels[toResolved.address.toLowerCase()] = toResolved.name;
+
+      const result = await simulateTransaction(config, {
+        from: fromResolved.address,
+        to: toResolved.address,
+        value: valueWei.toString(),
+        network,
+        fund,
+      });
+
+      const expectedChanges = [
+        `${amount} ${chain.nativeCurrency.symbol}: ${fromResolved.name ?? fromResolved.address} -> ${toResolved.name ?? toResolved.address}`,
+      ];
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: buildSimulationReport(result, {
+              title: `Simulation: transfer ${amount} ${chain.nativeCurrency.symbol}`,
+              labels,
+              nativeSymbol: chain.nativeCurrency.symbol,
+              expectedChanges,
+            }),
+          },
+        ],
+      };
+    } catch (error) {
+      return toolError(error);
+    }
+  },
+);
+
+server.tool(
+  "simulate_erc20_transfer",
+  "Simulates an ERC20 token transfer against forked/overridden EVM state (read-only, never broadcasts). Accepts a human amount (e.g. '10' USDC), resolves token decimals, and reports success/failure and token movements in plain English.",
+  {
+    token: z
+      .string()
+      .describe(`ERC20 token: ${addressParamDescription}, ENS name, or hex`),
+    from: z.string().describe(`${addressParamDescription}, ENS name, or hex (holder)`),
+    to: z.string().describe(`${addressParamDescription}, ENS name, or hex (recipient)`),
+    amount: z
+      .string()
+      .describe("Amount in whole token units (e.g. '10' for 10 USDC)"),
+    fund: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Fund the sender with virtual ETH to pay gas during simulation (default true)"),
+    ...networkSchema,
+  },
+  async ({ token, from, to, amount, fund, network }) => {
+    try {
+      const tokenResolved = await resolveAddressAsync(token, network, config);
+      const fromResolved = await resolveAddressAsync(from, network, config);
+      const toResolved = await resolveAddressAsync(to, network, config);
+
+      const decimals =
+        (await readErc20Decimals(
+          tokenResolved.address,
+          network,
+          tokenResolved.decimals,
+        )) ?? 18;
+      const symbol =
+        tokenResolved.name ??
+        (await readErc20Symbol(tokenResolved.address, network)) ??
+        "tokens";
+
+      let rawAmount: bigint;
+      try {
+        rawAmount = ethers.parseUnits(amount, decimals);
+      } catch {
+        throw new Error(
+          `Invalid amount "${amount}" for token with ${decimals} decimals`,
+        );
+      }
+
+      const data = ERC20_INTERFACE.encodeFunctionData("transfer", [
+        toResolved.address,
+        rawAmount,
+      ]);
+
+      const result = await simulateTransaction(config, {
+        from: fromResolved.address,
+        to: tokenResolved.address,
+        data,
+        network,
+        fund,
+        decimalsByToken: { [tokenResolved.address.toLowerCase()]: decimals },
+      });
+
+      const labels: Record<string, string> = {};
+      if (fromResolved.name)
+        labels[fromResolved.address.toLowerCase()] = fromResolved.name;
+      if (toResolved.name)
+        labels[toResolved.address.toLowerCase()] = toResolved.name;
+
+      const tokenSymbols: Record<string, string> = {
+        [tokenResolved.address.toLowerCase()]: symbol,
+      };
+
+      const chain = resolveNetwork(network, config);
+      const expectedChanges = [
+        `${amount} ${symbol}: ${fromResolved.name ?? fromResolved.address} -> ${toResolved.name ?? toResolved.address}`,
+      ];
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: buildSimulationReport(result, {
+              title: `Simulation: transfer ${amount} ${symbol}`,
+              labels,
+              tokenSymbols,
+              nativeSymbol: chain.nativeCurrency.symbol,
+              expectedChanges,
+            }),
           },
         ],
       };

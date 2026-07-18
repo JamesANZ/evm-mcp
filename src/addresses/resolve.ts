@@ -7,8 +7,10 @@ import {
   WalletAddressConfig,
 } from "../types.js";
 import { resolveNetwork } from "../network/resolve.js";
+import { getProviderForNetwork } from "../rpc/client.js";
 
 const HEX_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const ENS_NAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 
 function matchesLookup(
   input: string,
@@ -145,6 +147,54 @@ export function resolveAddress(
   throw new Error(
     `Unknown address alias "${trimmed}" on network ${network.slug}.${hint}`,
   );
+}
+
+/**
+ * Like resolveAddress, but also resolves ENS names (e.g. alice.eth) via the
+ * target network's ENS registry when the input is neither a hex address nor a
+ * configured alias. Used by the simulation tools.
+ */
+export async function resolveAddressAsync(
+  input: string,
+  networkInput: string | number | undefined,
+  config: AppConfig,
+): Promise<ResolvedAddress> {
+  const trimmed = input.trim();
+
+  try {
+    return resolveAddress(trimmed, networkInput, config);
+  } catch (error) {
+    if (!ENS_NAME.test(trimmed)) {
+      throw error;
+    }
+
+    const { provider, network } = getProviderForNetwork(config, networkInput);
+    let resolved: string | null = null;
+    try {
+      resolved = await provider.resolveName(trimmed);
+    } catch (ensError) {
+      const message =
+        ensError instanceof Error ? ensError.message : String(ensError);
+      throw new Error(
+        `Failed to resolve ENS name "${trimmed}" on ${network.slug}: ${message}`,
+      );
+    }
+
+    if (!resolved) {
+      throw new Error(
+        `ENS name "${trimmed}" did not resolve to an address on ${network.slug}. ` +
+          `Ensure the network has an ENS registry and the name is registered.`,
+      );
+    }
+
+    return {
+      address: ethers.getAddress(resolved),
+      input: trimmed,
+      kind: "known",
+      matchedAlias: trimmed,
+      name: trimmed,
+    };
+  }
 }
 
 export function listAddressRegistry(config: AppConfig) {

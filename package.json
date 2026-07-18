@@ -9,6 +9,7 @@
     "build": "tsc && chmod 755 build/index.js",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:integration": "node scripts/integration-test-mcp.js",
+    "test:simulate": "node scripts/test-simulate-mcp.js",
     "test:watch": "jest --watch",
     "start": "node build/index.js",
     "postinstall": "node scripts/postinstall.js",
