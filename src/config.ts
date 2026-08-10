@@ -87,6 +87,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     knownAddresses,
     walletAddresses,
     warnings,
+    readOnlyMode: env.EVM_MCP_READ_ONLY?.trim().toLowerCase() === "true",
   };
 }
 

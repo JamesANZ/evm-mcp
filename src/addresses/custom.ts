@@ -52,6 +52,7 @@ function resolveNetworkSlug(
       knownAddresses: [],
       walletAddresses: [],
       warnings: [],
+      readOnlyMode: false,
     } as AppConfig;
     return resolveNetwork(networkInput, config).slug;
   } catch {
