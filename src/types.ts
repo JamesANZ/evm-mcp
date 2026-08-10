@@ -65,6 +65,7 @@ export interface AppConfig {
   knownAddresses: KnownAddressConfig[];
   walletAddresses: WalletAddressConfig[];
   warnings: string[];
+  readOnlyMode: boolean;
 }
 
 export function normalizeSlug(value: string): string {

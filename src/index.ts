@@ -61,6 +61,29 @@ async function getTokenBalance(
   );
 }
 
+function validateSignedTransactionNetwork(
+  signedTransactionData: string,
+  network: string | number | undefined,
+): string | number | undefined {
+  const resolvedNetwork = resolveNetwork(network, config);
+  const tx = ethers.Transaction.from(signedTransactionData);
+
+  if (tx.chainId == null) {
+    throw new Error(
+      `Signed transaction is missing chainId. Refuse to broadcast without an explicit chain. Expected ${resolvedNetwork.name} (chainId ${resolvedNetwork.chainId}).`,
+    );
+  }
+
+  const txChainId = Number(tx.chainId);
+  if (txChainId !== resolvedNetwork.chainId) {
+    throw new Error(
+      `Signed transaction chainId ${txChainId} does not match selected network ${resolvedNetwork.name} (chainId ${resolvedNetwork.chainId}).`,
+    );
+  }
+
+  return network ?? resolvedNetwork.slug;
+}
+
 const server = new McpServer({
   name: "evm-mcp",
   version: "2.0.0",
@@ -673,13 +696,28 @@ server.tool(
       .describe("Signed transaction data (hex string)"),
     ...networkSchema,
   },
+  {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
   async ({ signedTransactionData, network }) => {
     try {
+      if (config.readOnlyMode) {
+        throw new Error(
+          "EVM_MCP_READ_ONLY=true is set. Transaction broadcast tools are disabled.",
+        );
+      }
+      const selectedNetwork = validateSignedTransactionNetwork(
+        signedTransactionData,
+        network,
+      );
       const result = await makeRPCCall(
         config,
         "eth_sendRawTransaction",
         [signedTransactionData],
-        network,
+        selectedNetwork,
       );
 
       return {
@@ -690,6 +728,7 @@ server.tool(
               {
                 transaction_hash: result,
                 status: "Transaction submitted successfully",
+                network: selectedNetwork ?? config.defaultNetwork,
               },
               "Raw Transaction Sent",
             ),
